@@ -9,7 +9,18 @@ export const formatDateTime = (date: string | Date) => {
 };
 
 export const formatRelativeTime = (date: string | Date) => {
-  return formatDistance(new Date(date), new Date(), { addSuffix: true });
+  if (!date) return "Unknown";
+
+  // Convert to string first
+  let d = typeof date === "string" ? date : date.toString();
+
+  // Remove microseconds (if any)
+  d = d.replace(/\.\d{6}/, "");
+
+  const parsed = new Date(d);
+  if (isNaN(parsed.getTime())) return "Unknown";
+
+  return formatDistance(parsed, new Date(), { addSuffix: true });
 };
 
 export const formatCurrency = (amount: number) => {

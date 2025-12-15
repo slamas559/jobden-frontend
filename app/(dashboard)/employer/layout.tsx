@@ -28,13 +28,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { NotificationDropdown } from '@/components/layout/notification-dropdown';
 
 const navigation = [
-  { name: 'Explore', href: '/job-seeker/jobs', icon: Search },
-  { name: 'My Jobs', href: '/employer/dashboard/jobs', icon: Briefcase },
-  { name: 'Applicants', href: '/employer/dashboard/applicants', icon: Users },
-  { name: 'Post Job', href: '/employer/dashboard/post-job', icon: PlusCircle },
-  { name: 'Company Profile', href: '/employer/dashboard/profile', icon: Building2 },
+  { name: 'Explore', href: '/employer/jobs', icon: Search },
+  { name: 'Dashboard', href: '/employer/dashboard', icon: LayoutDashboard },
+  { name: 'My Jobs', href: '/employer/jobs/my-job', icon: Briefcase },
+  // { name: 'Applicants', href: '/employer/applicants', icon: Users },
+  { name: 'Post Job', href: '/employer/jobs/post-job', icon: PlusCircle },
+  { name: 'Company Profile', href: '/employer/profile', icon: Building2 },
 ];
 
 export default function EmployerDashboardLayout({
@@ -60,9 +62,6 @@ export default function EmployerDashboardLayout({
             <div className="flex h-16 items-center justify-between">
               {/* Logo */}
               <Link href="/employer/dashboard" className="flex items-center space-x-2">
-                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                  <Briefcase className="h-5 w-5 text-white" />
-                </div>
                 <div>
                   <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     JobDen
@@ -97,6 +96,9 @@ export default function EmployerDashboardLayout({
 
               {/* User Menu */}
               <div className="flex items-center space-x-4">
+                {/* Notifications */}
+                <NotificationDropdown />
+                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">

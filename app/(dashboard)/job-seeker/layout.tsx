@@ -13,7 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Briefcase, Home, FileText, Bookmark, Bell, Settings, LogOut, Menu, Search, User } from 'lucide-react';
+import { Briefcase, Home, FileText, Bookmark, Settings, LogOut, Menu, Search, User } from 'lucide-react';
+import { NotificationDropdown } from '@/components/layout/notification-dropdown';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -23,7 +24,6 @@ const navigation = [
   { name: 'Explore', href: '/job-seeker/jobs', icon: Search },
   { name: 'Applications', href: '/job-seeker/applications', icon: FileText },
   { name: 'Bookmarks', href: '/job-seeker/bookmarks', icon: Bookmark },
-  { name: 'Notifications', href: '/job-seeker/notifications', icon: Bell },
   { name: 'Profile', href: '/job-seeker/profile', icon: User },
 ];
 
@@ -50,9 +50,6 @@ export default function DashboardLayout({
             <div className="flex h-16 items-center justify-between">
               {/* Logo */}
               <Link href="/" className="flex items-center space-x-2">
-                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                  <Briefcase className="h-5 w-5 text-white" />
-                </div>
                 <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                   JobDen
                 </span>
@@ -82,6 +79,9 @@ export default function DashboardLayout({
 
               {/* User Menu */}
               <div className="flex items-center space-x-4">
+                {/* Notifications */}
+                <NotificationDropdown />
+                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">

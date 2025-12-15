@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   },
   // Enable experimental features
   experimental: {
-    optimizePackageImports: ["lucide-react", "date-fns"],
+    optimizePackageImports: ["lucide-react", "date-fns", "ckeditor5"],
   },
 };
 

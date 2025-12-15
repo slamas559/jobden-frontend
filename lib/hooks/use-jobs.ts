@@ -57,3 +57,11 @@ export const useCheckBookmark = (jobId: number) => {
     enabled: !!jobId,
   });
 };
+
+export const useCheckApply = (jobId: number) => {
+  return useQuery({
+    queryKey: ['apply-status', jobId],
+    queryFn: () => jobService.checkApplyStatus(jobId),
+    enabled: !!jobId,
+  });
+};

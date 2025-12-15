@@ -87,6 +87,16 @@ class JobService {
       throw error;
     }
   }
+
+  // get job already applied
+  async checkApplyStatus(jobId: number): Promise<boolean> {
+    try {
+      const response = await apiClient.get(`/applications/check/${jobId}`);
+      return response.data.is_applied;
+    } catch (error) {
+      return false;
+    }
+  }
 }
 
 export const jobService = new JobService();
