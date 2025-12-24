@@ -2,8 +2,8 @@
 // REPLACE YOUR EXISTING FILE WITH THIS
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://jobden-api-m2pi.onrender.com/api/v1/";
-const API_URL = "http://localhost:8000/api/v1/";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://jobden-api-m2pi.onrender.com/api/v1/";
+// const API_URL = "http://localhost:8000/api/v1/";
 
 
 if (!API_URL) {

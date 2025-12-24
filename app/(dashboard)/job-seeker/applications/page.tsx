@@ -115,7 +115,7 @@ export default function ApplicationsPage() {
 
       {/* Applications List */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList>
+        <TabsList className='flex flex-wrap'>
           <TabsTrigger value="all">All <span className={stats.total ?`text-muted-foreground rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold` : ""}>{stats.total ? stats.total : ""}</span></TabsTrigger>
           <TabsTrigger value="pending">Pending <span className={stats.pending ?`text-muted-foreground rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold` : ""}>{stats.pending ? stats.pending : ""}</span></TabsTrigger>
           <TabsTrigger value="reviewed">Reviewed <span className={stats.reviewed ?`text-muted-foreground rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold` : ""}>{stats.reviewed ? stats.reviewed : ""}</span></TabsTrigger>
