@@ -1,4 +1,5 @@
 // lib/api/application-service.ts
+import { QuestionAnswer } from '../types/application-questions';
 import apiClient from './client';
 import { AxiosError } from 'axios';
 
@@ -34,6 +35,7 @@ export interface ApplicationDocument {
 export interface CreateApplicationData {
   job_id: number;
   cover_letter?: string;
+  question_answers?: QuestionAnswer[]
 }
 
 export interface UpdateApplicationData {

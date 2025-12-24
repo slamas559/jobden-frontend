@@ -156,7 +156,7 @@ export default function ApplicationsPage() {
                   Start applying to jobs to see your applications here
                 </p>
                 <Button asChild>
-                  <a href="/dashboard/jobs">Browse Jobs</a>
+                  <a href="/job-seeker/jobs">Browse Jobs</a>
                 </Button>
               </CardContent>
             </Card>
@@ -202,7 +202,7 @@ function ApplicationCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <a href={`/dashboard/applications/${application.id}`}>
+                  <a href={`/job-seeker/jobs/${application.job.id}`}>
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </a>

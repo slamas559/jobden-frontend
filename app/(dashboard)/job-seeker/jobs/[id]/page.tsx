@@ -75,17 +75,16 @@ export default function JobDetailPage() {
           companyName="Company Name" // Replace with actual company name from your data
           actions={
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                size="lg"
-                className="flex-1"
-                onClick={() => {
-                  // Handle application logic
-                  console.log('Apply to job', jobId);
-                }}
-              >
-                <Send className="h-5 w-5 mr-2" />
-                Apply Now
-              </Button>
+              <Link href={`/job-seeker/jobs/${job.id}/apply/`} className="w-full">
+                <Button
+                  size="lg"
+                  className="flex-1"
+                >
+                  <Send className="h-5 w-5 mr-2" />
+                  Apply Now
+                </Button>
+              </Link>
+
               <Button
                 variant={isBookmarked ? 'default' : 'outline'}
                 size="lg"

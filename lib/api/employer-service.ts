@@ -1,4 +1,5 @@
 // lib/api/employer-service.ts
+import { CustomQuestion } from '../types/application-questions';
 import apiClient from './client';
 
 // Add this file to your project: lib/api/employer-service.ts
@@ -50,6 +51,7 @@ export interface CreateJobData {
   job_type?: string;
   requirements?: string;
   is_active?: boolean;
+  custom_questions?: CustomQuestion[];
 }
 
 export interface UpdateJobData {

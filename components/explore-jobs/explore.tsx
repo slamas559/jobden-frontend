@@ -25,6 +25,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle,
+  SheetDescription 
+} from '@/components/ui/sheet';
 import { useJobs, useBookmarkJob, useRemoveBookmark, useCheckBookmark, useCheckApply } from '@/lib/hooks/use-jobs';
 import { formatRelativeTime, formatCurrency } from '@/lib/utils/format';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,6 +50,7 @@ const stripHtml = (html: string): string => {
 
 export default function ExplorePage() {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [jobTypeFilter, setJobTypeFilter] = useState('');
@@ -59,8 +67,6 @@ export default function ExplorePage() {
     skip: currentPage * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
   });
-
-  console.log('Jobs data:', jobs);
 
   const bookmarkMutation = useBookmarkJob();
   const removeBookmarkMutation = useRemoveBookmark();
@@ -93,6 +99,13 @@ export default function ExplorePage() {
     setLocationFilter('');
     setJobTypeFilter('');
     setCurrentPage(0);
+  };
+
+  const onJobClick = (jobId: number) => {
+    setSelectedJobId(jobId);
+    if (window.innerWidth < 1024) {
+      setIsMobileOpen(true);
+    }
   };
 
   return (
@@ -175,7 +188,7 @@ export default function ExplorePage() {
       </div>
 
       {/* Split View */}
-      <div className="grid lg:grid-cols-[500px_1fr] items-start gap-6 p-6 pb-0">
+      <div className="grid lg:grid-cols-[520px_1fr] items-start gap-6 p-6 pb-0">
         {/* Job List (Left Side) */}
         <div className="space-y-4">
           <div className="space-y-2">
@@ -196,7 +209,7 @@ export default function ExplorePage() {
                   job={job}
                   isJobSeeker={isJobSeeker}
                   isSelected={selectedJobId === job.id}
-                  onClick={() => setSelectedJobId(job.id)}
+                  onClick={() => onJobClick(job.id)}
                   onBookmarkToggle={handleBookmarkToggle}
                 />
               ))
@@ -241,11 +254,11 @@ export default function ExplorePage() {
           )}
         </div>
 
-        {/* Job Details (Right Side) */}
+        {/* Job Details (Right Side - Desktop Only) */}
         <div className="hidden lg:block sticky top-17 h-[calc(100vh-3rem)]">
           {selectedJob ? (
             <div className="h-full border bg-card overflow-y-scroll custom-scrollbar rounded-lg overflow-hidden scrollbar-green-500 shadow-sm">
-              <JobDetails job={selectedJob} />
+              <JobDetails job={selectedJob} isMobile={false} />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground border bg-card rounded-lg">
@@ -257,6 +270,17 @@ export default function ExplorePage() {
           )}
         </div>
       </div>
+
+      {/* Mobile Details Drawer (Bottom Sheet) */}
+      <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+        <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-xl">
+          <SheetHeader className="p-4 border-b sr-only">
+            <SheetTitle>Job Details</SheetTitle>
+            <SheetDescription>Viewing details for {selectedJob?.title}</SheetDescription>
+          </SheetHeader>
+          {selectedJob && <JobDetails job={selectedJob} isMobile={true} />}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -276,10 +300,9 @@ function JobCard({
   onBookmarkToggle: (jobId: number, isBookmarked: boolean) => void;
 }) {
   const { data: isBookmarked } = useCheckBookmark(job.id);  
-  // Strip HTML from description for preview
   const plainDescription = stripHtml(job.description);
   const descriptionPreview = plainDescription.length > 100 
-    ? plainDescription.substring(0, 100) + '...'
+    ? plainDescription.substring(0, 150) + '...'
     : plainDescription;
 
   return (
@@ -298,7 +321,7 @@ function JobCard({
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1">
               <h3 className="font-semibold line-clamp-1">{job.title}</h3>
-              <p className="text-sm text-muted-foreground">Company Name</p>
+              <p className="text-sm text-muted-foreground">{job.employer_id?.company_name || 'Company Name'}</p>
             </div>
             {isJobSeeker && (
               <Button
@@ -354,7 +377,7 @@ function JobCard({
 }
 
 // Job Details Component
-function JobDetails({ job }: { job: any }) {
+function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
   const { data: isBookmarked } = useCheckBookmark(job.id);
   const { data: isApplied } = useCheckApply(job.id);
   const bookmarkMutation = useBookmarkJob();
@@ -371,136 +394,243 @@ function JobDetails({ job }: { job: any }) {
     }
   };
 
-  return (
-    <div className="flex flex-col">
-      <ScrollArea className="">
-        <motion.div
-          key={job.id}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-          className="p-8"
-        >
-          <div className="max-w-3xl">
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full relative">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          <motion.div
+            key={job.id}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="p-6 pb-32"
+          >
             {/* Header */}
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Building2 className="h-4 w-4" />
-                  <span>{job.employer_id?.company_name}</span>
-                  <span>•</span>
-                  <Clock className="h-4 w-4" />
-                  <span>{formatRelativeTime(job.created_at)}</span>
-                </div>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Building2 className="h-4 w-4" />
+                <span>{job.employer_id?.company_name}</span>
+                <span>•</span>
+                <Clock className="h-4 w-4" />
+                <span>{formatRelativeTime(job.created_at)}</span>
               </div>
-              
-              {isJobSeeker && (
-                <Button
-                  variant={isBookmarked ? 'default' : 'outline'}
-                  onClick={handleBookmarkToggle}
-                >
-                  {isBookmarked ? (
-                    <>
-                      <BookmarkCheck className="h-4 w-4 mr-2" />
-                      Saved
-                    </>
-                  ) : (
-                    <>
-                      <Bookmark className="h-4 w-4 mr-2" />
-                      Save Job
-                    </>
-                  )}
-                </Button>
-              )}
             </div>
 
             {/* Job Info */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               {job.location && (
                 <div className="flex items-center gap-2">
                   <div className="p-2 bg-primary/10 rounded-lg">
-                    <MapPin className="h-5 w-5 text-indigo-600" />
+                    <MapPin className="h-4 w-4 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{job.location}</p>
+                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="font-medium text-sm">{job.location}</p>
                   </div>
                 </div>
               )}
               {job.job_type && (
                 <div className="flex items-center gap-2">
                   <div className="p-2 bg-primary/10 rounded-lg">
-                    <Briefcase className="h-5 w-5 text-indigo-600" />
+                    <Briefcase className="h-4 w-4 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Job Type</p>
-                    <p className="font-medium">{job.job_type}</p>
+                    <p className="text-xs text-muted-foreground">Job Type</p>
+                    <p className="font-medium text-sm">{job.job_type}</p>
                   </div>
                 </div>
               )}
               {job.salary && (
                 <div className="flex items-center gap-2">
                   <div className="p-2 bg-primary/10 rounded-lg">
-                    <DollarSign className="h-5 w-5 text-indigo-600" />
+                    <DollarSign className="h-4 w-4 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Salary</p>
-                    <p className="font-medium">{formatCurrency(job.salary)}</p>
+                    <p className="text-xs text-muted-foreground">Salary</p>
+                    <p className="font-medium text-sm">{formatCurrency(job.salary)}</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Description - RICH TEXT */}
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">About the Role</h2>
+            {/* Description */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold mb-3">About the Role</h2>
               <div 
                 className="prose prose-sm max-w-none dark:prose-invert editor-output"
                 dangerouslySetInnerHTML={{ __html: job.description }}
               />
             </div>
 
-            {/* Requirements - RICH TEXT */}
+            {/* Requirements */}
             {job.requirements && (
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Requirements</h2>
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-3">Requirements</h2>
                 <div 
                   className="prose prose-sm max-w-none dark:prose-invert editor-output"
                   dangerouslySetInnerHTML={{ __html: job.requirements }}
                 />
               </div>
             )}
+          </motion.div>
+        </div>
 
-            {/* Apply Button */}
-            <div className="flex flex-col sm:flex-row gap-9">
-              {isJobSeeker && (
-                <div className="pt-6 border-t">
-                  {isApplied ? (
-                    <Button size="lg" className="w-full sm:w-auto cursor-pointer" disabled>
-                      Already applied
-                    </Button>
-                  ) : (
-                    <Link href="" className="w-full">
-                      <Button size="lg" className="w-full sm:w-auto cursor-pointer">
-                        Apply
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              )}
+        {/* Fade Effect */}
+        <div className="absolute bottom-[50px] left-0 right-0 h-20 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-10" />
 
-              <div className="pt-6 border-t">
-                <Link href={`/job-seeker/jobs/${job.id}`} className="w-full">
-                  <Button size="lg" className="w-full bg-white text-gray-900 border border-gray-900 cursor-pointer sm:w-auto hover:bg-gray-100">
-                    See More ...
-                  </Button>
+        {/* Sticky Button Container */}
+        <div className="sticky bottom-0 bg-background border-t p-4 flex gap-3 z-20">
+          {isJobSeeker && (
+            <>
+              <Button
+                variant={isBookmarked ? 'default' : 'outline'}
+                onClick={handleBookmarkToggle}
+                size="icon"
+                className="shrink-0"
+              >
+                {isBookmarked ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </Button>
+              {isApplied ? (
+                <Button size="lg" disabled className="flex-1">Already applied</Button>
+              ) : (
+                <Link href={`/job-seeker/jobs/${job.id}/apply`} className="flex-1">
+                  <Button size="lg" className="w-full">Apply Now</Button>
                 </Link>
+              )}
+            </>
+          )}
+          <Link href={`/job-seeker/jobs/${job.id}`} className={isJobSeeker ? "flex-1" : "w-full"}>
+            <Button variant="outline" size="lg" className="w-full">Full Details</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop version
+  return (
+    <ScrollArea className="">
+      <motion.div
+        key={job.id}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3 }}
+        className="p-8"
+      >
+        <div className="max-w-3xl">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building2 className="h-4 w-4" />
+                <span>{job.employer_id?.company_name}</span>
+                <span>•</span>
+                <Clock className="h-4 w-4" />
+                <span>{formatRelativeTime(job.created_at)}</span>
               </div>
             </div>
+            
+            {isJobSeeker && (
+              <Button
+                variant={isBookmarked ? 'default' : 'outline'}
+                onClick={handleBookmarkToggle}
+              >
+                {isBookmarked ? (
+                  <>
+                    <BookmarkCheck className="h-4 w-4 mr-2" />
+                    Saved
+                  </>
+                ) : (
+                  <>
+                    <Bookmark className="h-4 w-4 mr-2" />
+                    Save Job
+                  </>
+                )}
+              </Button>
+            )}
           </div>
-        </motion.div>
-      </ScrollArea>
-    </div>
+
+          {/* Job Info */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            {job.location && (
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <MapPin className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Location</p>
+                  <p className="font-medium">{job.location}</p>
+                </div>
+              </div>
+            )}
+            {job.job_type && (
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Briefcase className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Job Type</p>
+                  <p className="font-medium">{job.job_type}</p>
+                </div>
+              </div>
+            )}
+            {job.salary && (
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Salary</p>
+                  <p className="font-medium">{formatCurrency(job.salary)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">About the Role</h2>
+            <div 
+              className="prose prose-sm max-w-none dark:prose-invert editor-output"
+              dangerouslySetInnerHTML={{ __html: job.description }}
+            />
+          </div>
+
+          {/* Requirements */}
+          {job.requirements && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">Requirements</h2>
+              <div 
+                className="prose prose-sm max-w-none dark:prose-invert editor-output"
+                dangerouslySetInnerHTML={{ __html: job.requirements }}
+              />
+            </div>
+          )}
+
+          {/* Apply Button - Desktop */}
+          <div className="border-t pt-6 flex flex-wrap gap-4">
+            {isJobSeeker && (
+              isApplied ? (
+                <Button size="lg" disabled className="flex-1 sm:flex-none">Already applied</Button>
+              ) : (
+                <Link href={`/job-seeker/jobs/${job.id}/apply`} className="flex-1 sm:flex-none">
+                  <Button size="lg" className="w-full">Apply Now</Button>
+                </Link>
+              )
+            )}
+            <Link href={`/job-seeker/jobs/${job.id}`} className="flex-1 sm:flex-none">
+              <Button variant="outline" size="lg" className="w-full">Full Details</Button>
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    </ScrollArea>
   );
 }

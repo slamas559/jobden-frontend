@@ -89,7 +89,7 @@ export default function EmployerDashboardPage() {
           </p>
         </div>
         <Button asChild size="lg">
-          <Link href="/employer/dashboard/post-job">
+          <Link href="/employer/jobs/post-job">
             <Plus className="h-5 w-5 mr-2" />
             Post New Job
           </Link>

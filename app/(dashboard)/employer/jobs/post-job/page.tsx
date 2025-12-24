@@ -19,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+// import CustomQuestionsEditor from '@/components/employer/custom-question-editor';
+import CustomQuestionsEditor, { Question } from '@/components/employer/custom-question-editor';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -48,7 +50,7 @@ export default function PostJobPage() {
   const router = useRouter();
   const createJobMutation = useCreateJob();
   const [previewMode, setPreviewMode] = useState(false);
-
+  const [customQuestions, setCustomQuestions] = useState<Question[]>([]);
   const {
     register,
     handleSubmit,
@@ -75,11 +77,12 @@ export default function PostJobPage() {
     createJobMutation.mutate(
       {
         ...data,
+        custom_questions: customQuestions,
         salary: data.salary ? parseFloat(data.salary) : undefined,
       },
       {
         onSuccess: () => {
-          router.push('/employer/dashboard/jobs');
+          router.push('/employer/jobs');
         },
       }
     );
@@ -223,6 +226,11 @@ export default function PostJobPage() {
                       error={errors.requirements?.message}
                     />
                   )}
+                />
+
+                <CustomQuestionsEditor 
+                  questions={customQuestions}                  
+                  onChange={setCustomQuestions}
                 />
 
                 {/* Active Toggle */}

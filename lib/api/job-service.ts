@@ -1,4 +1,5 @@
 // lib/api/job-service.ts
+import { CustomQuestion } from '../types/application-questions';
 import apiClient from './client';
 import { AxiosError } from 'axios';
 
@@ -13,6 +14,7 @@ export interface Job {
   is_active: boolean;
   created_at: string;
   employer_id: number;
+  custom_questions?: CustomQuestion[];
 }
 
 export interface JobsResponse {
