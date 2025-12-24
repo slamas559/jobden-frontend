@@ -91,7 +91,7 @@ export default function EmployerApplicantsPage() {
   );
   const updateStatusMutation = useUpdateApplicationStatus();
 
-  // console.log('split jobs', jobs[0]);
+  // console.log('split jobs', jobs);
   // console.log('selectedJobId', selectedJobId);
 
   // Set first job as default if no job is selected and jobs are loaded
@@ -377,7 +377,7 @@ export default function EmployerApplicantsPage() {
             <SelectValue placeholder="Select a job" />
           </SelectTrigger>
           <SelectContent>
-            {jobs[0].map((job) => (
+            {jobs?.map((job) => (
               <SelectItem key={job.id} value={job.id.toString()}>
                 {job.title}
               </SelectItem>

@@ -68,6 +68,7 @@ export default function ExplorePage() {
     limit: ITEMS_PER_PAGE,
   });
 
+  console.log("available jobs", jobs);
   const bookmarkMutation = useBookmarkJob();
   const removeBookmarkMutation = useRemoveBookmark();
 

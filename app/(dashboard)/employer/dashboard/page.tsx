@@ -160,7 +160,7 @@ export default function EmployerDashboardPage() {
             </div>
           ) : recentJobs && recentJobs.length > 0 ? (
             <div className="space-y-4">
-              {recentJobs[0].map((job) => (
+              {recentJobs.map((job) => (
                 <motion.div
                   key={job.id}
                   initial={{ opacity: 0, x: -20 }}

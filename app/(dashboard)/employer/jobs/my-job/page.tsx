@@ -62,7 +62,7 @@ export default function EmployerJobsPage() {
 
   const filteredJobs = (jobs: typeof allJobs) => {
     if (!jobs) return [];
-    return jobs[0].filter((job) =>
+    return jobs.filter((job) =>
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.location?.toLowerCase().includes(searchQuery.toLowerCase())
