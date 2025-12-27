@@ -33,7 +33,7 @@ export default function JobDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-2 md:p-8 space-y-6">
         <Skeleton className="h-12 w-3/4" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -43,7 +43,7 @@ export default function JobDetailPage() {
 
   if (!job) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-2 md:p-8">
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold mb-4">Job Not Found</h2>
           <p className="text-muted-foreground mb-6">
@@ -61,8 +61,8 @@ export default function JobDetailPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="container mx-auto p-2 md:p-8">
+      <div className=" mx-auto">
         <Button variant="ghost" className="mb-6" asChild>
           <Link href="/job-seeker/jobs">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -72,7 +72,6 @@ export default function JobDetailPage() {
 
         <JobDetailsDisplay
           job={job}
-          companyName="Company Name" // Replace with actual company name from your data
           actions={
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href={`/job-seeker/jobs/${job.id}/apply/`} className="w-full">

@@ -8,6 +8,7 @@ import {
   CreateJobData,
   UpdateJobData,
 } from '@/lib/api/employer-service';
+import { id } from 'date-fns/locale';
 
 // Profile Hooks
 export const useEmployerProfile = () => {
@@ -15,6 +16,15 @@ export const useEmployerProfile = () => {
     queryKey: ['employer-profile'],
     queryFn: () => employerService.getProfile(),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// employer profile by id
+export const useEmployerProfileById = (userId: number) => {
+  return useQuery({
+    queryKey: ['employer-profile', userId],
+    queryFn: () => employerService.getProfileById(userId),
+    staleTime: 5 * 60 * 1000,
   });
 };
 

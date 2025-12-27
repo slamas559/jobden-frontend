@@ -4,7 +4,7 @@
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useProfile } from '@/lib/hooks/use-profile';
 
 const navigation = [
   { name: 'Explore', href: '/job-seeker/jobs', icon: Search },
@@ -35,6 +36,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: profile } = useProfile();
 
   const userInitials = user?.email
     ?.split('@')[0]
@@ -86,9 +88,14 @@ export default function DashboardLayout({
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10 border-2 border-indigo-200">
-                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-                          {userInitials}
-                        </AvatarFallback>
+                        {
+                          profile?.profile_picture_url ? 
+                          <AvatarImage src={profile?.profile_picture_url || ''} /> 
+                          : 
+                          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                            {userInitials}
+                          </AvatarFallback>
+                        }
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>

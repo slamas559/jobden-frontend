@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -37,6 +37,7 @@ import { formatRelativeTime, formatCurrency } from '@/lib/utils/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/hooks/use-auth';
 import Link from 'next/link';
+import { useEmployerProfileById } from '@/lib/hooks/use-employer';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -68,7 +69,7 @@ export default function ExplorePage() {
     limit: ITEMS_PER_PAGE,
   });
 
-  console.log("available jobs", jobs);
+  // console.log("available jobs", jobs);
   const bookmarkMutation = useBookmarkJob();
   const removeBookmarkMutation = useRemoveBookmark();
 
@@ -189,7 +190,7 @@ export default function ExplorePage() {
       </div>
 
       {/* Split View */}
-      <div className="grid lg:grid-cols-[520px_1fr] items-start gap-6 p-6 pb-0">
+      <div className="grid lg:grid-cols-[520px_1fr] items-start gap-6 p-2 md:p-6 pb-0">
         {/* Job List (Left Side) */}
         <div className="space-y-4">
           <div className="space-y-2">
@@ -301,11 +302,13 @@ function JobCard({
   onBookmarkToggle: (jobId: number, isBookmarked: boolean) => void;
 }) {
   const { data: isBookmarked } = useCheckBookmark(job.id);  
+  const employerProfile = useEmployerProfileById(job.employer_id);
   const plainDescription = stripHtml(job.description);
   const descriptionPreview = plainDescription.length > 100 
     ? plainDescription.substring(0, 150) + '...'
     : plainDescription;
 
+  // console.log("employer profile in job card", employerProfile);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -322,7 +325,7 @@ function JobCard({
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1">
               <h3 className="font-semibold line-clamp-1">{job.title}</h3>
-              <p className="text-sm text-muted-foreground">{job.employer_id?.company_name || 'Company Name'}</p>
+              <p className="text-sm text-muted-foreground">{employerProfile?.data?.company_name || 'Company Name'}</p>
             </div>
             {isJobSeeker && (
               <Button
@@ -384,6 +387,7 @@ function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
   const bookmarkMutation = useBookmarkJob();
   const removeBookmarkMutation = useRemoveBookmark();
   const { user } = useAuth();
+  const employerProfile = useEmployerProfileById(job.employer_id);
 
   const isJobSeeker = user?.is_employer === false;
 
@@ -531,7 +535,7 @@ function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
               <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Building2 className="h-4 w-4" />
-                <span>{job.employer_id?.company_name}</span>
+                <span>{ employerProfile?.data?.company_name || "Company Name" }</span>
                 <span>•</span>
                 <Clock className="h-4 w-4" />
                 <span>{formatRelativeTime(job.created_at)}</span>

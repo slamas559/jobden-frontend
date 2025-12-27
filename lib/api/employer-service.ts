@@ -100,6 +100,16 @@ class EmployerService {
     }
   }
 
+  async getProfileById(userId: number): Promise<EmployerProfile> {
+    try {
+      const response = await apiClient.get<EmployerProfile>(`/employer/profile/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching employer profile by ID:', error);
+      throw error;
+    }
+  }
+
   async getProfileWithStats(): Promise<EmployerProfileWithStats> {
     try {
       const response = await apiClient.get<EmployerProfileWithStats>(
