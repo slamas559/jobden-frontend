@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   MapPin,
@@ -18,6 +18,7 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  ArrowLeftCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,17 +70,10 @@ export default function ExplorePage() {
     limit: ITEMS_PER_PAGE,
   });
 
-  // console.log("available jobs", jobs);
   const bookmarkMutation = useBookmarkJob();
   const removeBookmarkMutation = useRemoveBookmark();
 
-  // Auto-select first job when jobs load
-  useEffect(() => {
-    if (jobs && jobs.length > 0 && !selectedJobId) {
-      setSelectedJobId(jobs[0].id);
-    }
-  }, [jobs, selectedJobId]);
-
+  // Don't auto-select on desktop - let user choose
   const selectedJob = jobs?.find((job) => job.id === selectedJobId);
   const totalPages = jobs ? Math.ceil(jobs.length / ITEMS_PER_PAGE) : 0;
 
@@ -108,6 +102,10 @@ export default function ExplorePage() {
     if (window.innerWidth < 1024) {
       setIsMobileOpen(true);
     }
+  };
+
+  const goBack = () => {
+    setSelectedJobId(null);
   };
 
   return (
@@ -189,13 +187,13 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      {/* Split View */}
-      <div className="grid lg:grid-cols-[520px_1fr] items-start gap-6 p-2 md:p-6 pb-0">
-        {/* Job List (Left Side) */}
+      {/* Split View - Modified Layout */}
+      <div className={`grid ${selectedJobId ? 'lg:grid-cols-[520px_1fr]' : 'lg:grid-cols-1'} items-start gap-6 p-2 md:p-6 pb-0 transition-all duration-300`}>
+        {/* Job List (Left Side - 3 Column Grid on Desktop, Single Column when job selected) */}
         <div className="space-y-4">
-          <div className="space-y-2">
+          <div className={`grid grid-cols-1 ${selectedJobId ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-4`}>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
+              Array.from({ length: 6 }).map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-4">
                     <Skeleton className="h-6 w-3/4 mb-2" />
@@ -216,7 +214,7 @@ export default function ExplorePage() {
                 />
               ))
             ) : (
-              <div className="text-center py-12">
+              <div className="col-span-full text-center py-12">
                 <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No jobs found</p>
                 <Button variant="link" onClick={clearFilters} className="mt-2">
@@ -256,31 +254,38 @@ export default function ExplorePage() {
           )}
         </div>
 
-        {/* Job Details (Right Side - Desktop Only) */}
-        <div className="hidden lg:block sticky top-17 h-[calc(100vh-3rem)]">
-          {selectedJob ? (
-            <div className="h-full border bg-card overflow-y-scroll custom-scrollbar rounded-lg overflow-hidden scrollbar-green-500 shadow-sm">
-              <JobDetails job={selectedJob} isMobile={false} />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground border bg-card rounded-lg">
-              <div className="text-center">
-                <Briefcase className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>Select a job to view details</p>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Job Details (Right Side - Desktop Only - Shows only when job is selected) */}
+        {selectedJobId && (
+          <div className="hidden lg:block sticky top-17 h-[calc(100vh-3rem)]">
+            <AnimatePresence mode="wait">
+              {selectedJob && (
+                <motion.div
+                  key="job-details"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  className="h-full border bg-card overflow-y-scroll custom-scrollbar rounded-lg overflow-hidden scrollbar-green-500 shadow-sm"
+                >
+                  <JobDetails job={selectedJob} isMobile={false} onClick={() => goBack()} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
 
-      {/* Mobile Details Drawer (Bottom Sheet) */}
+      {/* Mobile Details Drawer (Bottom Sheet) with Enhanced Animation */}
       <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-        <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-xl">
+        <SheetContent 
+          side="bottom" 
+          className="h-[90vh] p-0 rounded-t-xl"
+        >
           <SheetHeader className="p-4 border-b sr-only">
             <SheetTitle>Job Details</SheetTitle>
             <SheetDescription>Viewing details for {selectedJob?.title}</SheetDescription>
           </SheetHeader>
-          {selectedJob && <JobDetails job={selectedJob} isMobile={true} />}
+          <JobDetails job={selectedJob} isMobile={true} onClick={() => goBack()} />
         </SheetContent>
       </Sheet>
     </div>
@@ -308,7 +313,6 @@ function JobCard({
     ? plainDescription.substring(0, 150) + '...'
     : plainDescription;
 
-  // console.log("employer profile in job card", employerProfile);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -316,21 +320,22 @@ function JobCard({
       transition={{ duration: 0.2 }}
     >
       <Card
-        className={`cursor-pointer transition-all hover:shadow-md ${
+        className={`cursor-pointer transition-all hover:shadow-md h-full ${
           isSelected ? 'ring-2 ring-primary bg-accent' : ''
         }`}
         onClick={onClick}
       >
-        <CardContent className="p-4">
+        <CardContent className="p-4 flex flex-col h-full">
           <div className="flex items-start justify-between mb-2">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h3 className="font-semibold line-clamp-1">{job.title}</h3>
-              <p className="text-sm text-muted-foreground">{employerProfile?.data?.company_name || 'Company Name'}</p>
+              <p className="text-sm text-muted-foreground truncate">{employerProfile?.data?.company_name || 'Company Name'}</p>
             </div>
             {isJobSeeker && (
               <Button
                 variant="ghost"
                 size="icon"
+                className="shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   onBookmarkToggle(job.id, isBookmarked || false);
@@ -366,7 +371,7 @@ function JobCard({
             )}
           </div>
 
-          <p className="text-sm text-muted-foreground line-clamp-2">
+          <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
             {descriptionPreview}
           </p>
 
@@ -381,7 +386,7 @@ function JobCard({
 }
 
 // Job Details Component
-function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
+function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; onClick: () => void }) {
   const { data: isBookmarked } = useCheckBookmark(job.id);
   const { data: isApplied } = useCheckApply(job.id);
   const bookmarkMutation = useBookmarkJob();
@@ -399,24 +404,19 @@ function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
     }
   };
 
+
   if (isMobile) {
     return (
       <div className="flex flex-col h-full relative">
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          <motion.div
-            key={job.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="p-6 pb-32"
-          >
+          <div className="p-6 pb-32">
             {/* Header */}
             <div className="mb-6">
               <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Building2 className="h-4 w-4" />
-                <span>{job.employer_id?.company_name}</span>
+                <span>{ employerProfile?.data?.company_name || "Company Name" }</span>
                 <span>•</span>
                 <Clock className="h-4 w-4" />
                 <span>{formatRelativeTime(job.created_at)}</span>
@@ -479,7 +479,7 @@ function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
                 />
               </div>
             )}
-          </motion.div>
+          </div>
         </div>
 
         {/* Fade Effect */}
@@ -521,15 +521,14 @@ function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
   // Desktop version
   return (
     <ScrollArea className="">
-      <motion.div
-        key={job.id}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-        className="p-8"
-      >
+      <div className="p-8">
         <div className="max-w-3xl">
           {/* Header */}
+          <div>
+            <Button variant="ghost" size="icon-sm" className="p-0 mb-2 cursor-pointer" onClick={onClick}>
+              <ArrowLeftCircle className="h-6 w-6" />
+            </Button>
+          </div>
           <div className="flex items-start justify-between mb-6">
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
@@ -635,7 +634,7 @@ function JobDetails({ job, isMobile }: { job: any; isMobile: boolean }) {
             </Link>
           </div>
         </div>
-      </motion.div>
+      </div>
     </ScrollArea>
   );
 }
