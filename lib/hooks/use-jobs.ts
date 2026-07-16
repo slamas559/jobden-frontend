@@ -50,18 +50,18 @@ export const useRemoveBookmark = () => {
   });
 };
 
-export const useCheckBookmark = (jobId: number) => {
+export const useCheckBookmark = (jobId: number, enabled: boolean = true) => {
   return useQuery({
     queryKey: ['bookmark-status', jobId],
     queryFn: () => jobService.checkBookmarkStatus(jobId),
-    enabled: !!jobId,
+    enabled: !!jobId && enabled,
   });
 };
 
-export const useCheckApply = (jobId: number) => {
+export const useCheckApply = (jobId: number, enabled: boolean = true) => {
   return useQuery({
     queryKey: ['apply-status', jobId],
     queryFn: () => jobService.checkApplyStatus(jobId),
-    enabled: !!jobId,
+    enabled: !!jobId && enabled,
   });
 };

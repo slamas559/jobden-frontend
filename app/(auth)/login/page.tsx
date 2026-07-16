@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,9 +22,11 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
 
   const {
     register,
@@ -34,6 +37,11 @@ export default function LoginPage() {
   });
 
   const onSubmit = (data: LoginFormData) => {
+    // Remember where to send the user back to once they're signed in
+    // (e.g. the job they were trying to apply to).
+    if (redirectTo && typeof window !== 'undefined') {
+      sessionStorage.setItem('postLoginRedirect', redirectTo);
+    }
     login({
       username: data.email,
       password: data.password,
@@ -85,7 +93,9 @@ export default function LoginPage() {
             <CardHeader className="space-y-1 pb-8">
               <CardTitle className="text-3xl font-bold tracking-tight">Welcome back</CardTitle>
               <CardDescription className="text-base">
-                Enter your credentials to access your account
+                {redirectTo
+                  ? 'Sign in to continue where you left off'
+                  : 'Enter your credentials to access your account'}
               </CardDescription>
             </CardHeader>
 
@@ -171,5 +181,13 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

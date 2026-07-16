@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ExplorePage from '@/components/explore-jobs/explore'
 
 export default function JobPage() {
   return (
-    <ExplorePage />
+    <Suspense fallback={null}>
+      <ExplorePage />
+    </Suspense>
   )
 }

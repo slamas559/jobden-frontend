@@ -57,8 +57,15 @@ export const useAuth = () => {
         
         toast.success('Welcome back!');
         
-        // Redirect based on user type
-        if (userData.is_employer) {
+        // If the user was redirected here from a protected action (e.g.
+        // "Apply Now" while browsing jobs signed out), send them back there.
+        const pendingRedirect =
+          typeof window !== 'undefined' ? sessionStorage.getItem('postLoginRedirect') : null;
+
+        if (pendingRedirect) {
+          sessionStorage.removeItem('postLoginRedirect');
+          router.push(pendingRedirect);
+        } else if (userData.is_employer) {
           router.push('/employer/dashboard');
         } else {
           router.push('/job-seeker/jobs');

@@ -1,0 +1,570 @@
+diff --git a/app/(auth)/login/page.tsx b/app/(auth)/login/page.tsx
+index 5fb48f3..7294d17 100644
+--- a/app/(auth)/login/page.tsx
++++ b/app/(auth)/login/page.tsx
+@@ -1,7 +1,8 @@
+ 'use client';
+ 
+-import { useState } from 'react';
++import { useState, Suspense } from 'react';
+ import Link from 'next/link';
++import { useSearchParams } from 'next/navigation';
+ import { useForm } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
+ import * as z from 'zod';
+@@ -21,9 +22,11 @@ const loginSchema = z.object({
+ 
+ type LoginFormData = z.infer<typeof loginSchema>;
+ 
+-export default function LoginPage() {
++function LoginForm() {
+   const [showPassword, setShowPassword] = useState(false);
+   const { login, isLoading } = useAuth();
++  const searchParams = useSearchParams();
++  const redirectTo = searchParams.get('redirect');
+ 
+   const {
+     register,
+@@ -34,6 +37,11 @@ export default function LoginPage() {
+   });
+ 
+   const onSubmit = (data: LoginFormData) => {
++    // Remember where to send the user back to once they're signed in
++    // (e.g. the job they were trying to apply to).
++    if (redirectTo && typeof window !== 'undefined') {
++      sessionStorage.setItem('postLoginRedirect', redirectTo);
++    }
+     login({
+       username: data.email,
+       password: data.password,
+@@ -85,7 +93,9 @@ export default function LoginPage() {
+             <CardHeader className="space-y-1 pb-8">
+               <CardTitle className="text-3xl font-bold tracking-tight">Welcome back</CardTitle>
+               <CardDescription className="text-base">
+-                Enter your credentials to access your account
++                {redirectTo
++                  ? 'Sign in to continue where you left off'
++                  : 'Enter your credentials to access your account'}
+               </CardDescription>
+             </CardHeader>
+ 
+@@ -172,4 +182,12 @@ export default function LoginPage() {
+       </div>
+     </div>
+   );
++}
++
++export default function LoginPage() {
++  return (
++    <Suspense fallback={null}>
++      <LoginForm />
++    </Suspense>
++  );
+ }
+\ No newline at end of file
+diff --git a/app/jobs/[id]/page.tsx b/app/jobs/[id]/page.tsx
+new file mode 100644
+index 0000000..9617742
+--- /dev/null
++++ b/app/jobs/[id]/page.tsx
+@@ -0,0 +1,136 @@
++// app/jobs/[id]/page.tsx
++'use client';
++
++import { useParams, useRouter } from 'next/navigation';
++import { Button } from '@/components/ui/button';
++import { JobDetailsDisplay } from '@/components/job/job-details-display';
++import { useJob, useBookmarkJob, useRemoveBookmark, useCheckBookmark, useCheckApply } from '@/lib/hooks/use-jobs';
++import { useAuth } from '@/lib/hooks/use-auth';
++import { Skeleton } from '@/components/ui/skeleton';
++import { Bookmark, BookmarkCheck, Send, ArrowLeft } from 'lucide-react';
++import Link from 'next/link';
++
++export default function PublicJobDetailPage() {
++  const params = useParams();
++  const router = useRouter();
++  const jobId = parseInt(params.id as string);
++
++  const { user, isAuthenticated } = useAuth();
++  const isEmployer = user?.is_employer === true;
++
++  const { data: job, isLoading } = useJob(jobId);
++  // Only look up bookmark/apply status for signed-in job seekers; guests
++  // never have one, and there's no need to hit those endpoints for them.
++  const { data: isBookmarked } = useCheckBookmark(jobId, isAuthenticated);
++  const { data: isApplied } = useCheckApply(jobId, isAuthenticated);
++  const bookmarkMutation = useBookmarkJob();
++  const removeBookmarkMutation = useRemoveBookmark();
++
++  // Send a signed-out visitor to login, remembering where to bring them
++  // back to once they're signed in.
++  const requireAuth = (action: () => void, redirectPath?: string) => {
++    if (!isAuthenticated) {
++      const target = redirectPath || `/jobs/${jobId}`;
++      router.push(`/login?redirect=${encodeURIComponent(target)}`);
++      return;
++    }
++    action();
++  };
++
++  const handleBookmarkToggle = () => {
++    requireAuth(() => {
++      if (isBookmarked) {
++        removeBookmarkMutation.mutate(jobId);
++      } else {
++        bookmarkMutation.mutate(jobId);
++      }
++    });
++  };
++
++  const handleApplyClick = () => {
++    const applyPath = `/job-seeker/jobs/${jobId}/apply`;
++    requireAuth(() => router.push(applyPath), applyPath);
++  };
++
++  if (isLoading) {
++    return (
++      <div className="container mx-auto p-2 md:p-8 space-y-6">
++        <Skeleton className="h-12 w-3/4" />
++        <Skeleton className="h-32 w-full" />
++        <Skeleton className="h-64 w-full" />
++      </div>
++    );
++  }
++
++  if (!job) {
++    return (
++      <div className="container mx-auto p-2 md:p-8">
++        <div className="text-center py-12">
++          <h2 className="text-2xl font-bold mb-4">Job Not Found</h2>
++          <p className="text-muted-foreground mb-6">
++            This job posting doesn't exist or has been removed.
++          </p>
++          <Button asChild>
++            <Link href="/jobs">
++              <ArrowLeft className="h-4 w-4 mr-2" />
++              Back to Jobs
++            </Link>
++          </Button>
++        </div>
++      </div>
++    );
++  }
++
++  return (
++    <div className="container mx-auto p-2 md:p-8">
++      <div className="mx-auto">
++        <Button variant="ghost" className="mb-6" asChild>
++          <Link href="/jobs">
++            <ArrowLeft className="h-4 w-4 mr-2" />
++            Back to Jobs
++          </Link>
++        </Button>
++
++        <JobDetailsDisplay
++          job={job}
++          actions={
++            // Employers don't apply/bookmark; everyone else (including
++            // guests who aren't signed in yet) sees these actions.
++            !isEmployer && (
++              <div className="flex flex-col sm:flex-row gap-4">
++                {isApplied ? (
++                  <Button size="lg" disabled className="flex-1">
++                    Already applied
++                  </Button>
++                ) : (
++                  <Button size="lg" className="flex-1" onClick={handleApplyClick}>
++                    <Send className="h-5 w-5 mr-2" />
++                    Apply Now
++                  </Button>
++                )}
++
++                <Button
++                  variant={isBookmarked ? 'default' : 'outline'}
++                  size="lg"
++                  onClick={handleBookmarkToggle}
++                >
++                  {isBookmarked ? (
++                    <>
++                      <BookmarkCheck className="h-5 w-5 mr-2" />
++                      Saved
++                    </>
++                  ) : (
++                    <>
++                      <Bookmark className="h-5 w-5 mr-2" />
++                      Save Job
++                    </>
++                  )}
++                </Button>
++              </div>
++            )
++          }
++        />
++      </div>
++    </div>
++  );
++}
+diff --git a/app/jobs/layout.tsx b/app/jobs/layout.tsx
+new file mode 100644
+index 0000000..25a2796
+--- /dev/null
++++ b/app/jobs/layout.tsx
+@@ -0,0 +1,58 @@
++// app/jobs/layout.tsx
++// Public layout for browsing jobs without an account. No ProtectedRoute here
++// on purpose — anyone should be able to explore listings. Actions that
++// actually require an account (apply, bookmark) are gated at the component
++// level and redirect to /login.
++'use client';
++
++import Link from 'next/link';
++import { Briefcase } from 'lucide-react';
++import { Button } from '@/components/ui/button';
++import { useAuth } from '@/lib/hooks/use-auth';
++
++export default function PublicJobsLayout({
++  children,
++}: {
++  children: React.ReactNode;
++}) {
++  const { isAuthenticated, user } = useAuth();
++  const dashboardHref = user?.is_employer ? '/employer/dashboard' : '/job-seeker/jobs';
++
++  return (
++    <div className="min-h-screen bg-slate-50/50">
++      <nav className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-50">
++        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
++          <Link href="/" className="flex items-center space-x-2">
++            <div className="p-1.5 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200">
++              <Briefcase className="h-5 w-5 text-white" />
++            </div>
++            <span className="text-xl font-bold tracking-tight">JobDen</span>
++          </Link>
++
++          <div className="flex items-center space-x-3">
++            {isAuthenticated ? (
++              <Link href={dashboardHref}>
++                <Button className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200">
++                  Go to Dashboard
++                </Button>
++              </Link>
++            ) : (
++              <>
++                <Link href="/login">
++                  <Button variant="ghost" className="font-medium">Sign In</Button>
++                </Link>
++                <Link href="/register">
++                  <Button className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200">
++                    Join Now
++                  </Button>
++                </Link>
++              </>
++            )}
++          </div>
++        </div>
++      </nav>
++
++      <main>{children}</main>
++    </div>
++  );
++}
+diff --git a/app/jobs/page.tsx b/app/jobs/page.tsx
+new file mode 100644
+index 0000000..3019e06
+--- /dev/null
++++ b/app/jobs/page.tsx
+@@ -0,0 +1,10 @@
++// app/jobs/page.tsx
++// Public "Explore Jobs" page. Anyone can browse and search jobs here without
++// logging in. Apply / bookmark actions inside ExplorePage redirect guests to
++// /login and bring them back afterwards.
++import React from 'react';
++import ExplorePage from '@/components/explore-jobs/explore';
++
++export default function PublicJobsPage() {
++  return <ExplorePage basePath="/jobs" />;
++}
+diff --git a/components/explore-jobs/explore.tsx b/components/explore-jobs/explore.tsx
+index 81c81be..a2f0f45 100644
+--- a/components/explore-jobs/explore.tsx
++++ b/components/explore-jobs/explore.tsx
+@@ -38,6 +38,7 @@ import { formatRelativeTime, formatCurrency } from '@/lib/utils/format';
+ import { Skeleton } from '@/components/ui/skeleton';
+ import { useAuth } from '@/lib/hooks/use-auth';
+ import Link from 'next/link';
++import { useRouter, usePathname } from 'next/navigation';
+ import { useEmployerProfileById } from '@/lib/hooks/use-employer';
+ 
+ const ITEMS_PER_PAGE = 10;
+@@ -50,7 +51,13 @@ const stripHtml = (html: string): string => {
+   return tmp.textContent || tmp.innerText || '';
+ };
+ 
+-export default function ExplorePage() {
++interface ExplorePageProps {
++  // Base path used to build "Full Details" links, e.g. '/jobs' for the
++  // public explore page or '/job-seeker/jobs' for the authenticated dashboard.
++  basePath?: string;
++}
++
++export default function ExplorePage({ basePath = '/job-seeker/jobs' }: ExplorePageProps) {
+   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+   const [isMobileOpen, setIsMobileOpen] = useState(false);
+   const [searchQuery, setSearchQuery] = useState('');
+@@ -59,8 +66,24 @@ export default function ExplorePage() {
+   const [currentPage, setCurrentPage] = useState(0);
+   const [showFilters, setShowFilters] = useState(false);
+ 
+-  const { user } = useAuth();
+-  const isJobSeeker = user?.is_employer === false;
++  const { user, isAuthenticated } = useAuth();
++  const router = useRouter();
++  const pathname = usePathname();
++  const isEmployer = user?.is_employer === true;
++  // Guests and job seekers both get to see the apply/bookmark UI while
++  // browsing; only signed-in employers don't (they manage jobs, not apply).
++  const isJobSeeker = !isEmployer;
++
++  // Wraps an action that requires a logged-in job seeker. If the visitor
++  // isn't authenticated yet, send them to login and bring them right back
++  // (or straight into the apply flow) once they sign in.
++  const requireAuth = (action: () => void, redirectPath?: string) => {
++    if (!isAuthenticated) {
++      router.push(`/login?redirect=${encodeURIComponent(redirectPath || pathname)}`);
++      return;
++    }
++    action();
++  };
+ 
+   const { data: jobs, isLoading } = useJobs({
+     search: searchQuery,
+@@ -78,11 +101,13 @@ export default function ExplorePage() {
+   const totalPages = jobs ? Math.ceil(jobs.length / ITEMS_PER_PAGE) : 0;
+ 
+   const handleBookmarkToggle = (jobId: number, isBookmarked: boolean) => {
+-    if (isBookmarked) {
+-      removeBookmarkMutation.mutate(jobId);
+-    } else {
+-      bookmarkMutation.mutate(jobId);
+-    }
++    requireAuth(() => {
++      if (isBookmarked) {
++        removeBookmarkMutation.mutate(jobId);
++      } else {
++        bookmarkMutation.mutate(jobId);
++      }
++    });
+   };
+ 
+   const handleSearch = (e: React.FormEvent) => {
+@@ -208,6 +233,7 @@ export default function ExplorePage() {
+                   key={job.id}
+                   job={job}
+                   isJobSeeker={isJobSeeker}
++                  isAuthenticated={isAuthenticated}
+                   isSelected={selectedJobId === job.id}
+                   onClick={() => onJobClick(job.id)}
+                   onBookmarkToggle={handleBookmarkToggle}
+@@ -267,7 +293,14 @@ export default function ExplorePage() {
+                   transition={{ duration: 0.3 }}
+                   className="h-full border bg-card overflow-y-scroll custom-scrollbar rounded-lg overflow-hidden scrollbar-green-500 shadow-sm"
+                 >
+-                  <JobDetails job={selectedJob} isMobile={false} onClick={() => goBack()} />
++                  <JobDetails
++                    job={selectedJob}
++                    isMobile={false}
++                    onClick={() => goBack()}
++                    basePath={basePath}
++                    isAuthenticated={isAuthenticated}
++                    requireAuth={requireAuth}
++                  />
+                 </motion.div>
+               )}
+             </AnimatePresence>
+@@ -285,7 +318,14 @@ export default function ExplorePage() {
+             <SheetTitle>Job Details</SheetTitle>
+             <SheetDescription>Viewing details for {selectedJob?.title}</SheetDescription>
+           </SheetHeader>
+-          <JobDetails job={selectedJob} isMobile={true} onClick={() => goBack()} />
++          <JobDetails
++            job={selectedJob}
++            isMobile={true}
++            onClick={() => goBack()}
++            basePath={basePath}
++            isAuthenticated={isAuthenticated}
++            requireAuth={requireAuth}
++          />
+         </SheetContent>
+       </Sheet>
+     </div>
+@@ -297,16 +337,19 @@ function JobCard({
+   job,
+   isSelected,
+   isJobSeeker,
++  isAuthenticated,
+   onClick,
+   onBookmarkToggle,
+ }: {
+   job: any;
+   isSelected: boolean;
+   isJobSeeker: boolean;
++  isAuthenticated: boolean;
+   onClick: () => void;
+   onBookmarkToggle: (jobId: number, isBookmarked: boolean) => void;
+ }) {
+-  const { data: isBookmarked } = useCheckBookmark(job.id);  
++  // Only check bookmark status for signed-in users; guests never have one.
++  const { data: isBookmarked } = useCheckBookmark(job.id, isAuthenticated);
+   const employerProfile = useEmployerProfileById(job.employer_id);
+   const plainDescription = stripHtml(job.description);
+   const descriptionPreview = plainDescription.length > 100 
+@@ -386,17 +429,35 @@ function JobCard({
+ }
+ 
+ // Job Details Component
+-function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; onClick: () => void }) {
+-  const { data: isBookmarked } = useCheckBookmark(job.id);
+-  const { data: isApplied } = useCheckApply(job.id);
++function JobDetails({
++  job,
++  isMobile,
++  onClick,
++  basePath = '/job-seeker/jobs',
++  isAuthenticated = false,
++  requireAuth,
++}: {
++  job: any;
++  isMobile: boolean;
++  onClick: () => void;
++  basePath?: string;
++  isAuthenticated?: boolean;
++  requireAuth?: (action: () => void, redirectPath?: string) => void;
++}) {
++  // Only check bookmark/apply status for signed-in users.
++  const { data: isBookmarked } = useCheckBookmark(job.id, isAuthenticated);
++  const { data: isApplied } = useCheckApply(job.id, isAuthenticated);
+   const bookmarkMutation = useBookmarkJob();
+   const removeBookmarkMutation = useRemoveBookmark();
+   const { user } = useAuth();
++  const router = useRouter();
+   const employerProfile = useEmployerProfileById(job.employer_id);
+ 
+-  const isJobSeeker = user?.is_employer === false;
++  // Guests and job seekers both see the apply/bookmark UI; only signed-in
++  // employers don't (they manage jobs, not apply to them).
++  const isJobSeeker = user?.is_employer !== true;
+ 
+-  const handleBookmarkToggle = () => {
++  const doBookmarkToggle = () => {
+     if (isBookmarked) {
+       removeBookmarkMutation.mutate(job.id);
+     } else {
+@@ -404,6 +465,23 @@ function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; o
+     }
+   };
+ 
++  const handleBookmarkToggle = () => {
++    if (requireAuth) {
++      requireAuth(doBookmarkToggle);
++    } else {
++      doBookmarkToggle();
++    }
++  };
++
++  const handleApplyClick = () => {
++    const applyPath = `/job-seeker/jobs/${job.id}/apply`;
++    if (requireAuth) {
++      requireAuth(() => router.push(applyPath), applyPath);
++    } else {
++      router.push(applyPath);
++    }
++  };
++
+ 
+   if (isMobile) {
+     return (
+@@ -504,13 +582,13 @@ function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; o
+               {isApplied ? (
+                 <Button size="lg" disabled className="flex-1">Already applied</Button>
+               ) : (
+-                <Link href={`/job-seeker/jobs/${job.id}/apply`} className="flex-1">
+-                  <Button size="lg" className="w-full">Apply Now</Button>
+-                </Link>
++                <Button size="lg" className="flex-1" onClick={handleApplyClick}>
++                  Apply Now
++                </Button>
+               )}
+             </>
+           )}
+-          <Link href={`/job-seeker/jobs/${job.id}`} className={isJobSeeker ? "flex-1" : "w-full"}>
++          <Link href={`${basePath}/${job.id}`} className={isJobSeeker ? "flex-1" : "w-full"}>
+             <Button variant="outline" size="lg" className="w-full">Full Details</Button>
+           </Link>
+         </div>
+@@ -624,12 +702,12 @@ function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; o
+               isApplied ? (
+                 <Button size="lg" disabled className="flex-1 sm:flex-none">Already applied</Button>
+               ) : (
+-                <Link href={`/job-seeker/jobs/${job.id}/apply`} className="flex-1 sm:flex-none">
+-                  <Button size="lg" className="w-full">Apply Now</Button>
+-                </Link>
++                <Button size="lg" className="flex-1 sm:flex-none" onClick={handleApplyClick}>
++                  Apply Now
++                </Button>
+               )
+             )}
+-            <Link href={`/job-seeker/jobs/${job.id}`} className="flex-1 sm:flex-none">
++            <Link href={`${basePath}/${job.id}`} className="flex-1 sm:flex-none">
+               <Button variant="outline" size="lg" className="w-full">Full Details</Button>
+             </Link>
+           </div>
+diff --git a/lib/hooks/use-auth.ts b/lib/hooks/use-auth.ts
+index c15ece9..c247dee 100644
+--- a/lib/hooks/use-auth.ts
++++ b/lib/hooks/use-auth.ts
+@@ -57,8 +57,15 @@ export const useAuth = () => {
+         
+         toast.success('Welcome back!');
+         
+-        // Redirect based on user type
+-        if (userData.is_employer) {
++        // If the user was redirected here from a protected action (e.g.
++        // "Apply Now" while browsing jobs signed out), send them back there.
++        const pendingRedirect =
++          typeof window !== 'undefined' ? sessionStorage.getItem('postLoginRedirect') : null;
++
++        if (pendingRedirect) {
++          sessionStorage.removeItem('postLoginRedirect');
++          router.push(pendingRedirect);
++        } else if (userData.is_employer) {
+           router.push('/employer/dashboard');
+         } else {
+           router.push('/job-seeker/jobs');
+diff --git a/lib/hooks/use-jobs.ts b/lib/hooks/use-jobs.ts
+index b311370..6dd638a 100644
+--- a/lib/hooks/use-jobs.ts
++++ b/lib/hooks/use-jobs.ts
+@@ -50,18 +50,18 @@ export const useRemoveBookmark = () => {
+   });
+ };
+ 
+-export const useCheckBookmark = (jobId: number) => {
++export const useCheckBookmark = (jobId: number, enabled: boolean = true) => {
+   return useQuery({
+     queryKey: ['bookmark-status', jobId],
+     queryFn: () => jobService.checkBookmarkStatus(jobId),
+-    enabled: !!jobId,
++    enabled: !!jobId && enabled,
+   });
+ };
+ 
+-export const useCheckApply = (jobId: number) => {
++export const useCheckApply = (jobId: number, enabled: boolean = true) => {
+   return useQuery({
+     queryKey: ['apply-status', jobId],
+     queryFn: () => jobService.checkApplyStatus(jobId),
+-    enabled: !!jobId,
++    enabled: !!jobId && enabled,
+   });
+ };
+\ No newline at end of file

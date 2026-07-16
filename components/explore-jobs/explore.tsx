@@ -38,6 +38,7 @@ import { formatRelativeTime, formatCurrency } from '@/lib/utils/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/hooks/use-auth';
 import Link from 'next/link';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEmployerProfileById } from '@/lib/hooks/use-employer';
 
 const ITEMS_PER_PAGE = 10;
@@ -50,17 +51,40 @@ const stripHtml = (html: string): string => {
   return tmp.textContent || tmp.innerText || '';
 };
 
-export default function ExplorePage() {
+interface ExplorePageProps {
+  // Base path used to build "Full Details" links, e.g. '/jobs' for the
+  // public explore page or '/job-seeker/jobs' for the authenticated dashboard.
+  basePath?: string;
+}
+
+export default function ExplorePage({ basePath = '/job-seeker/jobs' }: ExplorePageProps) {
+  const searchParams = useSearchParams();
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [jobTypeFilter, setJobTypeFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
+  const [locationFilter, setLocationFilter] = useState(() => searchParams.get('location') || '');
+  const [jobTypeFilter, setJobTypeFilter] = useState(() => searchParams.get('job_type') || '');
   const [currentPage, setCurrentPage] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
-  const { user } = useAuth();
-  const isJobSeeker = user?.is_employer === false;
+  const { user, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isEmployer = user?.is_employer === true;
+  // Guests and job seekers both get to see the apply/bookmark UI while
+  // browsing; only signed-in employers don't (they manage jobs, not apply).
+  const isJobSeeker = !isEmployer;
+
+  // Wraps an action that requires a logged-in job seeker. If the visitor
+  // isn't authenticated yet, send them to login and bring them right back
+  // (or straight into the apply flow) once they sign in.
+  const requireAuth = (action: () => void, redirectPath?: string) => {
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent(redirectPath || pathname)}`);
+      return;
+    }
+    action();
+  };
 
   const { data: jobs, isLoading } = useJobs({
     search: searchQuery,
@@ -78,11 +102,13 @@ export default function ExplorePage() {
   const totalPages = jobs ? Math.ceil(jobs.length / ITEMS_PER_PAGE) : 0;
 
   const handleBookmarkToggle = (jobId: number, isBookmarked: boolean) => {
-    if (isBookmarked) {
-      removeBookmarkMutation.mutate(jobId);
-    } else {
-      bookmarkMutation.mutate(jobId);
-    }
+    requireAuth(() => {
+      if (isBookmarked) {
+        removeBookmarkMutation.mutate(jobId);
+      } else {
+        bookmarkMutation.mutate(jobId);
+      }
+    });
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -208,6 +234,7 @@ export default function ExplorePage() {
                   key={job.id}
                   job={job}
                   isJobSeeker={isJobSeeker}
+                  isAuthenticated={isAuthenticated}
                   isSelected={selectedJobId === job.id}
                   onClick={() => onJobClick(job.id)}
                   onBookmarkToggle={handleBookmarkToggle}
@@ -267,7 +294,14 @@ export default function ExplorePage() {
                   transition={{ duration: 0.3 }}
                   className="h-full border bg-card overflow-y-scroll custom-scrollbar rounded-lg overflow-hidden scrollbar-green-500 shadow-sm"
                 >
-                  <JobDetails job={selectedJob} isMobile={false} onClick={() => goBack()} />
+                  <JobDetails
+                    job={selectedJob}
+                    isMobile={false}
+                    onClick={() => goBack()}
+                    basePath={basePath}
+                    isAuthenticated={isAuthenticated}
+                    requireAuth={requireAuth}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -285,7 +319,14 @@ export default function ExplorePage() {
             <SheetTitle>Job Details</SheetTitle>
             <SheetDescription>Viewing details for {selectedJob?.title}</SheetDescription>
           </SheetHeader>
-          <JobDetails job={selectedJob} isMobile={true} onClick={() => goBack()} />
+          <JobDetails
+            job={selectedJob}
+            isMobile={true}
+            onClick={() => goBack()}
+            basePath={basePath}
+            isAuthenticated={isAuthenticated}
+            requireAuth={requireAuth}
+          />
         </SheetContent>
       </Sheet>
     </div>
@@ -297,16 +338,19 @@ function JobCard({
   job,
   isSelected,
   isJobSeeker,
+  isAuthenticated,
   onClick,
   onBookmarkToggle,
 }: {
   job: any;
   isSelected: boolean;
   isJobSeeker: boolean;
+  isAuthenticated: boolean;
   onClick: () => void;
   onBookmarkToggle: (jobId: number, isBookmarked: boolean) => void;
 }) {
-  const { data: isBookmarked } = useCheckBookmark(job.id);  
+  // Only check bookmark status for signed-in users; guests never have one.
+  const { data: isBookmarked } = useCheckBookmark(job.id, isAuthenticated);
   const employerProfile = useEmployerProfileById(job.employer_id);
   const plainDescription = stripHtml(job.description);
   const descriptionPreview = plainDescription.length > 100 
@@ -386,21 +430,56 @@ function JobCard({
 }
 
 // Job Details Component
-function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; onClick: () => void }) {
-  const { data: isBookmarked } = useCheckBookmark(job.id);
-  const { data: isApplied } = useCheckApply(job.id);
+function JobDetails({
+  job,
+  isMobile,
+  onClick,
+  basePath = '/job-seeker/jobs',
+  isAuthenticated = false,
+  requireAuth,
+}: {
+  job: any;
+  isMobile: boolean;
+  onClick: () => void;
+  basePath?: string;
+  isAuthenticated?: boolean;
+  requireAuth?: (action: () => void, redirectPath?: string) => void;
+}) {
+  // Only check bookmark/apply status for signed-in users.
+  const { data: isBookmarked } = useCheckBookmark(job.id, isAuthenticated);
+  const { data: isApplied } = useCheckApply(job.id, isAuthenticated);
   const bookmarkMutation = useBookmarkJob();
   const removeBookmarkMutation = useRemoveBookmark();
   const { user } = useAuth();
+  const router = useRouter();
   const employerProfile = useEmployerProfileById(job.employer_id);
 
-  const isJobSeeker = user?.is_employer === false;
+  // Guests and job seekers both see the apply/bookmark UI; only signed-in
+  // employers don't (they manage jobs, not apply to them).
+  const isJobSeeker = user?.is_employer !== true;
 
-  const handleBookmarkToggle = () => {
+  const doBookmarkToggle = () => {
     if (isBookmarked) {
       removeBookmarkMutation.mutate(job.id);
     } else {
       bookmarkMutation.mutate(job.id);
+    }
+  };
+
+  const handleBookmarkToggle = () => {
+    if (requireAuth) {
+      requireAuth(doBookmarkToggle);
+    } else {
+      doBookmarkToggle();
+    }
+  };
+
+  const handleApplyClick = () => {
+    const applyPath = `/job-seeker/jobs/${job.id}/apply`;
+    if (requireAuth) {
+      requireAuth(() => router.push(applyPath), applyPath);
+    } else {
+      router.push(applyPath);
     }
   };
 
@@ -504,13 +583,13 @@ function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; o
               {isApplied ? (
                 <Button size="lg" disabled className="flex-1">Already applied</Button>
               ) : (
-                <Link href={`/job-seeker/jobs/${job.id}/apply`} className="flex-1">
-                  <Button size="lg" className="w-full">Apply Now</Button>
-                </Link>
+                <Button size="lg" className="flex-1" onClick={handleApplyClick}>
+                  Apply Now
+                </Button>
               )}
             </>
           )}
-          <Link href={`/job-seeker/jobs/${job.id}`} className={isJobSeeker ? "flex-1" : "w-full"}>
+          <Link href={`${basePath}/${job.id}`} className={isJobSeeker ? "flex-1" : "w-full"}>
             <Button variant="outline" size="lg" className="w-full">Full Details</Button>
           </Link>
         </div>
@@ -624,12 +703,12 @@ function JobDetails({ job, isMobile, onClick }: { job: any; isMobile: boolean; o
               isApplied ? (
                 <Button size="lg" disabled className="flex-1 sm:flex-none">Already applied</Button>
               ) : (
-                <Link href={`/job-seeker/jobs/${job.id}/apply`} className="flex-1 sm:flex-none">
-                  <Button size="lg" className="w-full">Apply Now</Button>
-                </Link>
+                <Button size="lg" className="flex-1 sm:flex-none" onClick={handleApplyClick}>
+                  Apply Now
+                </Button>
               )
             )}
-            <Link href={`/job-seeker/jobs/${job.id}`} className="flex-1 sm:flex-none">
+            <Link href={`${basePath}/${job.id}`} className="flex-1 sm:flex-none">
               <Button variant="outline" size="lg" className="w-full">Full Details</Button>
             </Link>
           </div>
